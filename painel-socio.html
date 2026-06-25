@@ -186,7 +186,10 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   }
   #dashboard .tile{overflow:visible}
   #dashboard .tile-chart{min-height:200px}
-  #dashboard #kResumo{grid-template-columns:repeat(3,1fr)}
+  /* barras de Saídas: o canvas vira display:none e a lista de barras (height:100%) não resolve
+     contra pai de altura auto no responsivo — cresce pelo conteúdo, com espaçamento fixo */
+  #dashboard .cat-bars{height:auto;justify-content:flex-start;gap:8px;overflow:visible}
+  #dashboard #kResumo{grid-template-columns:repeat(5,1fr)}   /* 5 numa linha: elimina a célula morta do 3+2 */
   #dashboard #kUE{grid-template-columns:repeat(3,1fr)}
   #dashboard .ue-wrap.ue-dual{grid-template-columns:1fr}
 }
@@ -195,9 +198,13 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
 @media(max-width:640px){
   #dashboard .px-topbar h1{display:none}
   #dashboard .px-topbar .ts-badge{font-size:9px}
-  #dashboard .px-filter{flex-wrap:wrap;gap:5px;padding:5px 8px}
-  #dashboard .px-filter input[type=month]{width:110px;font-size:10px}
+  #dashboard .px-filter{flex-wrap:wrap;gap:8px;padding:6px 8px;overflow:visible}
+  /* campos De/Até: alvo tocável 44px + fonte 16px (evita auto-zoom do iOS) + elásticos */
+  #dashboard .px-filter input[type=month]{flex:1 1 120px;min-width:120px;width:auto;font-size:16px;padding:8px;min-height:44px}
   #dashboard .px-filter-lock{display:none}
+  /* presets de período: alvo tocável adequado (eram ~17px de altura) */
+  #dashboard .px-presets{gap:8px;flex-wrap:wrap}
+  #dashboard .px-preset{padding:11px 16px;font-size:13px;min-height:44px;display:flex;align-items:center;justify-content:center;line-height:1}
   #dashboard .px-bento{
     grid-template-columns:1fr;
     grid-template-areas:
@@ -222,12 +229,24 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   #dashboard .ue-wrap.ue-dual{grid-template-columns:1fr}
   #dashboard .cat-row{grid-template-columns:90px 1fr 36px}
   #dashboard .gauge-val{font-size:22px}
+  /* legibilidade no celular: sobe rótulos e legendas miúdas mantendo a hierarquia (label > sub) */
+  #dashboard .tile .kpi .label,#dashboard #kResumo .kpi .label{font-size:11px}
+  #dashboard .tile .kpi .sub,#dashboard #kResumo .kpi .sub{font-size:10.5px;line-height:1.35;white-space:normal}
+  #dashboard .px-note{font-size:11px;line-height:1.4}
+  #dashboard .gauge-scale{font-size:10px}
+  #dashboard .logo-sub{font-size:10px}
+  /* tabela UE em 1 coluna: rótulo quebra em vez de estourar a largura em telas estreitas */
+  #dashboard .ue-dre td.lbl{white-space:normal;line-height:1.3}
+  #dashboard .ue-dre td{vertical-align:top}
+  #dashboard .ue-dre .val{min-width:64px}
+  #dashboard .ue-dre .pct,#dashboard .ue-dre .head td,#dashboard .ue-col-head{font-size:10.5px}
+  #dashboard .ue-dre .pct{min-width:26px}
 }
 
 /* tela de carregamento / erro */
 #loadScreen{position:fixed;inset:0;background:#080b10;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:16px;z-index:999}
-#loadScreen .load-logo{font-size:32px;color:var(--px-brand);font-weight:800;letter-spacing:-.5px}
+#loadScreen .load-logo{display:flex;align-items:center;gap:14px;font-size:32px;color:#fff;font-weight:800;letter-spacing:-.5px;text-transform:lowercase}
 #loadScreen .load-msg{font-size:13px;color:var(--px-muted);text-align:center;max-width:480px;line-height:1.6}
 #loadScreen .load-err{color:var(--px-red);font-size:12px;max-width:500px;text-align:center;line-height:1.6;
   background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:8px;padding:12px 16px}
@@ -239,7 +258,19 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
 
 <!-- Tela de carregamento (visível até os dados chegarem) -->
 <div id="loadScreen">
-  <div class="load-logo">Mentat</div>
+  <div class="load-logo">
+    <svg viewBox="0 0 100 100" width="56" height="56" role="img" aria-label="Evolving">
+      <defs><linearGradient id="evgLoad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#27c4cd"/><stop offset="100%" stop-color="#37b277"/>
+      </linearGradient></defs>
+      <rect x="4" y="4" width="92" height="92" rx="26" fill="url(#evgLoad)"/>
+      <g fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round">
+        <path d="M67.2 74.6 A30 30 0 1 1 79.5 55.2"/>
+        <line x1="28" y1="50" x2="76" y2="50"/>
+      </g>
+    </svg>
+    <span>evolving</span>
+  </div>
   <div class="load-msg" id="loadMsg">Carregando painel...</div>
 </div>
 
@@ -249,17 +280,17 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   <!-- Barra de topo com logo e timestamp de publicação -->
   <div class="px-topbar">
     <div class="logo-mark">
-      <svg viewBox="0 0 64 100" width="22" height="34">
-        <defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#f9e9bf"/><stop offset="45%" stop-color="#dcab5b"/>
-          <stop offset="100%" stop-color="#9c6a2a"/>
+      <svg viewBox="0 0 100 100" width="28" height="28" role="img" aria-label="Evolving">
+        <defs><linearGradient id="evgTop" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#27c4cd"/><stop offset="100%" stop-color="#37b277"/>
         </linearGradient></defs>
-        <g fill="url(#mg)">
-          <path d="M60 6 L60 22 L32 48 L32 32 Z"/>
-          <path fill-rule="evenodd" d="M32 40 L56 66 L32 92 L8 66 Z M32 54 L43 66 L32 78 L21 66 Z"/>
+        <rect x="4" y="4" width="92" height="92" rx="26" fill="url(#evgTop)"/>
+        <g fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round">
+          <path d="M67.2 74.6 A30 30 0 1 1 79.5 55.2"/>
+          <line x1="28" y1="50" x2="76" y2="50"/>
         </g>
       </svg>
-      <div><div class="logo-name">Mentat</div><div class="logo-sub">FP&amp;A</div></div>
+      <div><div class="logo-name" style="color:#fff;text-transform:lowercase;font-weight:800">evolving</div><div class="logo-sub">Escola de Evolução para o Varejo</div></div>
     </div>
     <h1>Painel Executivo</h1>
     <div class="spacer"></div>
@@ -359,22 +390,50 @@ function showErr(msg,hint){
   el.innerHTML='<div class="load-err">'+msg+'</div>'+(hint?'<div class="load-hint">'+hint+'</div>':'');
 }
 
-/* --- stubs temporários (enquanto dados não chegam) --- */
-var D={};
-function stub(fn){ window[fn]=function(){ return D[fn]||null; }; }
-['rxBuild','dreBreakeven','caixaHoje','dreHistMonthly','dfcFluxoByMonth','dfcCategoriasTop'].forEach(stub);
-window.rollSeries=function(){ return D.roll||null; };
+/* --- dados do painel: preenchido pelo fetch e REAPONTADO a cada refresh automático.
+       Todos os stubs leem desta variável única, então re-renderizar = puxar o dado novo. --- */
+var DADOS=null;
+window.rxBuild          = function(){ return DADOS?DADOS.rx||null:null; };
+window.rxData           = function(){ return DADOS?DADOS.rx||null:null; };
+window.dreBreakeven     = function(){ return DADOS?DADOS.dreBreakeven||null:null; };
+window.dreUnitInputs    = function(){ return DADOS?(DADOS.dreUnitInputs||synthDreUnitInputs(DADOS)):null; };
+window.caixaHoje        = function(){ return DADOS?DADOS.caixaHoje||null:null; };
+window.dreHistMonthly   = function(){ return DADOS?DADOS.dreHist||null:null; };
+window.dfcFluxoByMonth  = function(){ return DADOS?DADOS.dfcFluxo||null:null; };
+window.dfcCategoriasTop = function(){ return DADOS?DADOS.dfcCatTop||null:null; };
+window.dreCategoriasTop = function(){ return DADOS?(DADOS.dreCatTop||DADOS.dfcCatTop||null):null; };
+window.rollSeries       = function(){ return DADOS?DADOS.roll||null:null; };
 window.pxGetRange=function(){
   var de=document.getElementById('pxDe'), ate=document.getElementById('pxAte');
   if(de&&ate&&de.value&&ate.value) return {de:de.value,ate:ate.value};
   return null;
 };
 
+/* --- sintetiza dreUnitInputs a partir dos dados disponíveis quando não foi publicado --- */
+function synthDreUnitInputs(dados){
+  var hist=dados.dreHist;
+  if(!hist||!hist.length) return null;
+  var last3=hist.slice(-3), n=last3.length;
+  if(!n) return null;
+  var rbSum=0,cmvSum=0,mktSum=0,comSum=0;
+  last3.forEach(function(d){ rbSum+=(d.RB||0); cmvSum+=Math.abs(d.cmv||0); mktSum+=Math.abs(d.mkt||0); comSum+=Math.abs(d.com||0); });
+  var rbMes=rbSum/n, cpvPct=rbSum>0?+(cmvSum/rbSum*100).toFixed(1):0;
+  var be=dados.dreBreakeven||{}, rxT=(dados.rx&&dados.rx.T)||{};
+  return {
+    temReal:true, ticket:rxT.ticket||0, ticketFonte:'histórico',
+    simplesPct:be.simplesPct||8.57, deducaoPct:2,
+    cpvVarPct:cpvPct, cpvR2:0, cpvMedMes:cmvSum/n, cpv3Pct:cpvPct, cpv3:true,
+    rbMes:rbMes, vendasMes:rxT.novos||0, fonteVendas:'histórico',
+    mktFixo:mktSum/n, comFixo:comSum/n, mktFonte:'histórico', comFonte:'histórico'
+  };
+}
+
 /* --- configura filtros de data com base nos dados disponíveis --- */
 function setupFiltros(dados){
   var meses=[];
-  if(dados.dfcCatTop&&dados.dfcCatTop.meses) meses=dados.dfcCatTop.meses;
-  else if(dados.dreHist) meses=Object.keys(dados.dreHist).sort();
+  if(dados.dreCatTop&&dados.dreCatTop.meses) meses=dados.dreCatTop.meses;
+  else if(dados.dfcCatTop&&dados.dfcCatTop.meses) meses=dados.dfcCatTop.meses;
+  else if(dados.dreHist&&dados.dreHist.length) meses=dados.dreHist.map(function(d){return d.ym;}).sort();
   var ate=meses.length?meses[meses.length-1]:null;
   var de=meses.length?meses[Math.max(0,meses.length-6)]:null;
   if(de&&ate){
@@ -430,58 +489,54 @@ if(binId){
 }
 document.getElementById('loadMsg').textContent='Baixando dados do painel...';
 
-fetch(url)
-  .then(function(r){
-    if(!r.ok) throw new Error('HTTP '+r.status+' — verifique se o link é público e acessível.');
-    return r.json();
-  })
-  .then(function(raw){
-    /* JSONBin encapsula em {record: {...}} — extrai o payload real */
-    var dados=raw&&raw.record?raw.record:raw;
-    /* popula stubs com dados reais */
-    D.rxBuild          = dados.rx;
-    D.dreBreakeven     = dados.dreBreakeven;
-    D.caixaHoje        = dados.caixaHoje;
-    D.dreHistMonthly   = dados.dreHist;
-    D.dfcFluxoByMonth  = dados.dfcFluxo;
-    D.dfcCategoriasTop = dados.dfcCatTop;
-    D.roll             = dados.roll;
-
-    /* redefine stubs com dados reais (dfcCategoriasTop ignora o parâmetro n — já vem com 40) */
-    window.rxBuild          = function(){ return dados.rx||null; };
-    window.dreBreakeven     = function(){ return dados.dreBreakeven||null; };
-    window.dreUnitInputs    = function(){ return dados.dreUnitInputs||null; };
-    window.caixaHoje        = function(){ return dados.caixaHoje||null; };
-    window.dreHistMonthly   = function(){ return dados.dreHist||null; };
-    window.dfcFluxoByMonth  = function(){ return dados.dfcFluxo||null; };
-    window.dfcCategoriasTop = function(){ return dados.dfcCatTop||null; };
-    window.rollSeries       = function(){ return dados.roll||null; };
-    window.rxData           = function(){ return dados.rx||null; };
-
-    /* timestamp na barra */
-    if(dados.ts){
-      var badge=document.getElementById('tsBadge');
-      if(badge) badge.textContent=fmtTs(dados.ts);
-    }
-
-    /* mostra o dashboard, esconde loading */
+/* aplica um payload recém-baixado: reaponta DADOS (os stubs leem dele) e re-renderiza */
+var primeiraCarga=true;
+function aplicarDados(raw){
+  /* JSONBin encapsula em {record: {...}} — extrai o payload real */
+  var dados=raw&&raw.record?raw.record:raw;
+  DADOS=dados;
+  /* timestamp na barra */
+  if(dados.ts){
+    var badge=document.getElementById('tsBadge');
+    if(badge) badge.textContent=fmtTs(dados.ts);
+  }
+  if(primeiraCarga){
     document.getElementById('loadScreen').style.display='none';
     document.getElementById('dashboard').style.display='flex';
+    setupFiltros(dados);            // só na 1ª vez (evita re-anexar listeners e respeita o filtro escolhido)
+    primeiraCarga=false;
+  }
+  if(window.painelRenderAll) window.painelRenderAll();
+}
 
-    setupFiltros(dados);
+/* baixa os dados; silencioso=true não mostra tela de erro (usado no auto-refresh em background) */
+function carregar(silencioso){
+  var u=url+(url.indexOf('?')>=0?'&':'?')+'_cb='+(+new Date());   // cache-bust: evita CDN/navegador servir versão velha
+  return fetch(u,{cache:'no-store'})
+    .then(function(r){
+      if(!r.ok) throw new Error('HTTP '+r.status+' — verifique se o link é público e acessível.');
+      return r.json();
+    })
+    .then(aplicarDados)
+    .catch(function(err){
+      if(silencioso){ console.warn('auto-refresh falhou:',err.message); return; }
+      showErr(
+        'Erro ao carregar dados: '+err.message,
+        'Dicas:<br>'
+        +'• O arquivo precisa ser <b>público</b> (qualquer pessoa com o link pode ver)<br>'
+        +'• Para Google Drive: use "Compartilhar → Qualquer pessoa com o link → Visualizador"<br>'
+        +'• Verifique se o link está completo e correto'
+      );
+    });
+}
 
-    /* renderiza */
-    if(window.painelRenderAll) window.painelRenderAll();
-  })
-  .catch(function(err){
-    showErr(
-      'Erro ao carregar dados: '+err.message,
-      'Dicas:<br>'
-      +'• O arquivo precisa ser <b>público</b> (qualquer pessoa com o link pode ver)<br>'
-      +'• Para Google Drive: use "Compartilhar → Qualquer pessoa com o link → Visualizador"<br>'
-      +'• Verifique se o link está completo e correto'
-    );
-  });
+carregar(false);
+/* AUTO-ATUALIZAÇÃO: o sócio não precisa recarregar a página.
+   Re-busca a cada 5 min e também quando ele volta para a aba (visibilitychange). */
+setInterval(function(){ carregar(true); }, 5*60*1000);
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible' && !primeiraCarga) carregar(true);
+});
 
 })();
 </script>

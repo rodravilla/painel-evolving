@@ -326,8 +326,8 @@ function renderUE(opts){
 function renderRentabilidade(dreMeses,be){
   const kbox=document.getElementById('kRent');
   const rentPctEl=document.getElementById('rentPct');
-  // pega até 40 categorias p/ cobrir todo o plano de contas
-  const catData=wCall('dfcCategoriasTop',40);
+  // prefere DRE (competência); cai para DFC se não disponível
+  const catData=wCall('dreCategoriasTop',40)||wCall('dfcCategoriasTop',40);
   if(!catData||!catData.categorias.length){
     if(kbox) kbox.innerHTML=''; if(rentPctEl) rentPctEl.textContent='';
     _rentSetBars(null); return;
@@ -508,26 +508,58 @@ function painelRenderAll(){
 
 window.painelRenderAll = painelRenderAll;
 
-/* ── Publicar para Sócios — serializa estado atual e baixa JSON ── */
+/* ── Publicar para Sócios — serializa estado atual e baixa JSON ──
+   JSONBin free = limite de 100kb por registro. Por isso enxugamos o payload:
+   - rx: remove recebParc (drill-down de parcelas por cliente, não usado no painel) e Sets
+   - roll: mantém só o que renderCaixa usa (sem Vsai/data aninhado/objetos Date)
+   - categorias: só DRE (competência), top 15 — DFC era redundante */
+function pxSlimRx(rx){
+  if(!rx) return null;
+  var M={};
+  Object.keys(rx.M||{}).forEach(function(m){
+    var s=rx.M[m], o={};
+    for(var k in s){ var v=s[k];
+      if(k==='recebParc') continue;                 // lista de parcelas por cliente — drill-down, fora do painel
+      if(v&&typeof v==='object'&&typeof v.add==='function') continue;   // Set (ativosRec) — não serializa
+      if(typeof v==='number') o[k]=Math.round(v*100)/100; else o[k]=v;
+    }
+    M[m]=o;
+  });
+  return { months:rx.months, M:M, T:rx.T, mktFonte:rx.mktFonte, aging:rx.aging };
+}
+function pxSlimRoll(r){
+  if(!r||!r.weeks) return null;
+  return {
+    saldo0:r.saldo0, saldoFim:r.saldoFim, saldoMin:r.saldoMin,
+    weekMin: r.weekMin?{label:r.weekMin.label}:null,
+    weeks: r.weeks.map(function(w){ return {key:w.key,label:w.label}; }),
+    entLiq:r.entLiq, totSai:r.totSai, sFim:r.sFim
+  };
+}
 window.pxSerializar = function(){
   var cx=wCall('caixaHoje');
   var saldo=cx&&cx.saldoHoje!=null?cx.saldoHoje:null;
   var roll=saldo!=null?wCall('rollSeries',saldo,null):wCall('rollSeries');
   return {
-    rx:wCall('rxBuild',null),
+    rx:pxSlimRx(wCall('rxBuild',null)),
     dreBreakeven:wCall('dreBreakeven'),
     dreUnitInputs:wCall('dreUnitInputs',null),
     caixaHoje:cx,
     dreHist:wCall('dreHistMonthly'),
     dfcFluxo:wCall('dfcFluxoByMonth'),
-    dfcCatTop:wCall('dfcCategoriasTop',40),
-    roll:roll,
+    dreCatTop:wCall('dreCategoriasTop',15,null),
+    roll:pxSlimRoll(roll),
     ts:new Date().toISOString()
   };
 };
+/* tamanho do payload em KB (diagnóstico do limite de 100kb) */
+window.pxTamanhoKB = function(dados){
+  try{ return Math.round(new Blob([JSON.stringify(dados||window.pxSerializar())]).size/1024); }
+  catch(e){ return null; }
+};
 window.pxPublicarSocios = function(){
   var d=window.pxSerializar();
-  if(!d.rx&&!d.dreHist&&!d.dfcCatTop){
+  if(!d.rx&&!d.dreHist&&!d.dreCatTop){
     alert('Importe o extrato financeiro antes de publicar.');
     return;
   }
@@ -549,16 +581,23 @@ window.pxAutoPublish = async function(mudou){
   var cfg=pxLoadCfg();
   if(!cfg||!cfg.apiKey||!cfg.binId) return;
   var dados=window.pxSerializar();
-  if(!dados.rx&&!dados.dreHist&&!dados.dfcCatTop) return;
+  if(!dados.rx&&!dados.dreHist&&!dados.dreCatTop) return;
+  var body=JSON.stringify(dados);
+  var kb=Math.round(new Blob([body]).size/1024);
+  if(kb>=100){   // limite do JSONBin free — aborta antes de a API recusar, com mensagem útil
+    pxSetPublishStatus('✗ Payload '+kb+'kb > limite 100kb do JSONBin free. Avise o dev p/ enxugar mais.','err');
+    console.warn('pxAutoPublish: payload '+kb+'kb excede 100kb');
+    return;
+  }
   try{
     var r=await fetch('https://api.jsonbin.io/v3/b/'+cfg.binId,{
       method:'PUT',
       headers:{'Content-Type':'application/json','X-Master-Key':cfg.apiKey},
-      body:JSON.stringify(dados)
+      body:body
     });
     if(!r.ok){ var je=await r.json().catch(()=>{}); throw new Error((je&&je.message)||'HTTP '+r.status); }
     var t=new Date().toLocaleTimeString('pt-BR');
-    pxSetPublishStatus('✓ Publicado automaticamente · '+t,'ok');
+    pxSetPublishStatus('✓ Publicado ('+kb+'kb) · '+t,'ok');
     var st=document.getElementById('autoStatus');
     if(st&&mudou) st.title='Dashboard dos sócios atualizado · '+t;
   }catch(e){
