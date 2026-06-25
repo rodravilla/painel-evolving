@@ -350,8 +350,22 @@ function renderRentabilidade(dreMeses,be){
     if(v>0) catSum[key]=v;
   };
   _merge('Salários e Honorários',['Salários e Encargos','Honorários']);
-  // merge: Distribuição de Lucros + Antecipação de Lucros → "Remuneração Sócios"
-  _merge('Remuneração Sócios',['Distribuição de Lucros','Antecipação de Lucros']);
+  // merge: tudo que é remuneração de sócio — Pró-labore + Antecipação de Lucros + Distribuição de Lucros → "Sócios"
+  (function(){
+    var v=0; Object.keys(catSum).forEach(function(k){
+      if(/distribui.*lucro|antecipa.*lucro|pr[óo].?labore/i.test(k)){ v+=catSum[k]; delete catSum[k]; }
+    });
+    if(v>0) catSum['Sócios']=v;
+  })();
+  // merge: as DUAS linhas de "Custo de Antecipação de Recebimentos" (gateways Assiny/Greenn etc.)
+  // viram UMA só — libera um slot p/ a próxima categoria mais alta entrar no top 7.
+  // Roda DEPOIS do merge de Remuneração (que já removeu "Antecipação de Lucros") p/ não pegá-la.
+  (function(){
+    var v=0; Object.keys(catSum).forEach(function(k){
+      if(/custo de antecipa|antecipa.*receb/i.test(k)){ v+=catSum[k]; delete catSum[k]; }
+    });
+    if(v>0) catSum['Antecipação de Recebimentos']=v;
+  })();
   // excluir pass-throughs financeiros do ranking visual (tarifas e pagamentos de cartão)
   Object.keys(catSum).forEach(function(k){ if(/cart[aã]o/i.test(k)) delete catSum[k]; });
   const totalSai=Object.values(catSum).reduce((s,v)=>s+v,0);
@@ -360,6 +374,7 @@ function renderRentabilidade(dreMeses,be){
   const shr=s=>s.replace('Softwares e Plataformas','Softwares')
     .replace('Marketing e Publicidade','Marketing').replace('Custo Direto e Impostos','Custo Direto')
     .replace('Distribuição de Lucros','Dist. Lucros').replace('Antecipação de Lucros','Antec. Lucros')
+    .replace('Antecipação de Recebimentos','Antecip. Receb.')
     .replace('Máquinas, Computadores e Manutenção','Maq./Comp.').replace('Tarifa Cobrança da Plataforma','Tarifa Plat.')
     .replace('Comissões de Vendedores','Comissões').replace('Custas Judiciais','Custas Jud.')
     .replace('Serv. Terceiros','Serv. Terc.');
