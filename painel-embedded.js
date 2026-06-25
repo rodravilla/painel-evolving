@@ -352,8 +352,8 @@ function renderRentabilidade(dreMeses,be){
   _merge('Salários e Honorários',['Salários e Encargos','Honorários']);
   // merge: Distribuição de Lucros + Antecipação de Lucros → "Remuneração Sócios"
   _merge('Remuneração Sócios',['Distribuição de Lucros','Antecipação de Lucros']);
-  // excluir pass-throughs financeiros do ranking visual
-  delete catSum['Tarifas de Cartões de Crédito'];
+  // excluir pass-throughs financeiros do ranking visual (tarifas e pagamentos de cartão)
+  Object.keys(catSum).forEach(function(k){ if(/cart[aã]o/i.test(k)) delete catSum[k]; });
   const totalSai=Object.values(catSum).reduce((s,v)=>s+v,0);
   const top7=Object.keys(catSum).sort((a,b)=>catSum[b]-catSum[a]).slice(0,7);
   const maxVal=top7.length?catSum[top7[0]]:1;
@@ -516,6 +516,7 @@ window.pxSerializar = function(){
   return {
     rx:wCall('rxBuild',null),
     dreBreakeven:wCall('dreBreakeven'),
+    dreUnitInputs:wCall('dreUnitInputs',null),
     caixaHoje:cx,
     dreHist:wCall('dreHistMonthly'),
     dfcFluxo:wCall('dfcFluxoByMonth'),
