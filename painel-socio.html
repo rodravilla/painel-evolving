@@ -171,11 +171,57 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
 #dashboard .cat-pct{font-size:11px;font-weight:700;color:#94a3b8;text-align:right;white-space:nowrap}
 #dashboard .cat-detail{grid-column:1/-1;font-size:9px;color:#64748b;line-height:1.4;padding-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-@media(max-height:780px),(max-width:1080px){
+/* ── Tablet (≤ 1100px) ── */
+@media(max-width:1100px){
   #dashboard{height:auto;overflow:auto}
-  #dashboard .px-bento{grid-template-rows:auto}
+  #dashboard .px-bento{
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:auto;
+    grid-template-areas:
+     "hero   hero"
+     "caixa  inad"
+     "ebitda receita"
+     "pe     ue"
+     "rent   rent";
+  }
   #dashboard .tile{overflow:visible}
-  #dashboard .tile-chart{min-height:160px}
+  #dashboard .tile-chart{min-height:200px}
+  #dashboard #kResumo{grid-template-columns:repeat(3,1fr)}
+  #dashboard #kUE{grid-template-columns:repeat(3,1fr)}
+  #dashboard .ue-wrap.ue-dual{grid-template-columns:1fr}
+}
+
+/* ── Mobile (≤ 640px) ── */
+@media(max-width:640px){
+  #dashboard .px-topbar h1{display:none}
+  #dashboard .px-topbar .ts-badge{font-size:9px}
+  #dashboard .px-filter{flex-wrap:wrap;gap:5px;padding:5px 8px}
+  #dashboard .px-filter input[type=month]{width:110px;font-size:10px}
+  #dashboard .px-filter-lock{display:none}
+  #dashboard .px-bento{
+    grid-template-columns:1fr;
+    grid-template-areas:
+     "hero"
+     "caixa"
+     "inad"
+     "receita"
+     "ebitda"
+     "pe"
+     "ue"
+     "rent";
+    gap:8px;padding:8px;
+  }
+  #dashboard #kResumo{grid-template-columns:repeat(2,1fr)}
+  #dashboard #kResumo .kpi .value{font-size:15px}
+  #dashboard .tile{padding:9px 10px}
+  #dashboard .tile-chart{min-height:180px}
+  #dashboard #kReceita{grid-template-columns:1fr 1fr 1fr}
+  #dashboard #kInad{grid-template-columns:1fr 1fr 1fr}
+  #dashboard #kPE{grid-template-columns:1fr 1fr}
+  #dashboard #kUE{grid-template-columns:repeat(2,1fr)}
+  #dashboard .ue-wrap.ue-dual{grid-template-columns:1fr}
+  #dashboard .cat-row{grid-template-columns:90px 1fr 36px}
+  #dashboard .gauge-val{font-size:22px}
 }
 
 /* tela de carregamento / erro */
