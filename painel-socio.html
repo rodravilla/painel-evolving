@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Painel Executivo — Evolving</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-apple-system,sans-serif;overflow:hidden}
+:root{
+  --px-bg:#080b10;--px-tile:#0f1520;--px-tile2:#151c2a;--px-line:#1e2840;
+  --px-text:#cbd5e1;--px-muted:#64748b;
+  --px-green:#10b981;--px-red:#f43f5e;--px-amber:#f59e0b;--px-proj:#60a5fa;--px-brand:#dcab5b;
+  --c1:#4b7cf3;--c2:#f97316;--c3:#a78bfa;--c4:#22d3ee;
+  --c5:#fbbf24;--c6:#fb7185;--c7:#34d399;--c8:#c084fc;
+  --px-acc:var(--c1);
+}
+#dashboard{display:flex;flex-direction:column;height:100vh;overflow:hidden;background:var(--px-bg)}
+
+/* barra de topo */
+#dashboard .px-topbar{display:flex;align-items:center;gap:12px;padding:6px 14px;
+  background:var(--px-tile);border-bottom:1px solid var(--px-line);flex:0 0 auto}
+#dashboard .px-topbar .logo-mark{display:flex;align-items:center;gap:8px;margin-right:6px}
+#dashboard .px-topbar .logo-name{font-size:13px;font-weight:700;color:var(--px-brand);letter-spacing:.02em}
+#dashboard .px-topbar .logo-sub{font-size:9px;color:var(--px-muted);margin-top:1px}
+#dashboard .px-topbar h1{font-size:12px;font-weight:600;color:#94a3b8;letter-spacing:.04em;text-transform:uppercase}
+#dashboard .px-topbar .spacer{flex:1}
+#dashboard .px-topbar .ts-badge{font-size:10px;color:var(--px-muted);border:1px solid var(--px-line);
+  border-radius:4px;padding:2px 8px}
+
+/* barra de filtro de data */
+#dashboard .px-filter{display:flex;align-items:center;gap:8px;padding:4px 12px;
+  background:var(--px-tile);border-bottom:1px solid var(--px-line);flex:0 0 auto;white-space:nowrap;overflow:hidden}
+#dashboard .px-filter label{font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.5px;color:var(--px-muted);flex-shrink:0}
+#dashboard .px-filter input[type=month]{background:var(--px-tile2);border:1px solid rgba(255,255,255,.1);
+  border-radius:5px;padding:2px 6px;color:#e4e4e7;font-size:11px;color-scheme:dark;cursor:pointer;width:130px;flex-shrink:0}
+#dashboard .px-filter input[type=month]:focus{outline:1px solid var(--px-green);outline-offset:1px}
+#dashboard .px-filter-sep{color:var(--px-muted);font-size:11px;flex-shrink:0}
+#dashboard .px-presets{display:flex;gap:4px;flex-shrink:0}
+#dashboard .px-preset{background:var(--px-tile2);border:1px solid rgba(255,255,255,.08);
+  border-radius:5px;padding:1px 8px;font-size:11px;color:var(--px-muted);cursor:pointer;transition:all .12s}
+#dashboard .px-preset:hover,#dashboard .px-preset.active{background:rgba(0,193,108,.12);
+  border-color:var(--px-green);color:var(--px-green)}
+#dashboard .px-filter-lock{margin-left:auto;font-size:9px;color:#3f3f46;white-space:nowrap;
+  border-left:1px solid rgba(255,255,255,.06);padding-left:10px;flex-shrink:0}
+
+/* bento grid */
+#dashboard .px-bento{flex:1;min-height:0;display:grid;gap:10px;padding:10px;
+  grid-template-columns:repeat(12,1fr);
+  grid-template-rows:auto minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);
+  grid-template-areas:
+   "hero hero hero hero hero hero hero hero hero hero hero hero"
+   "caixa caixa caixa caixa caixa caixa caixa caixa inad inad inad inad"
+   "ebitda ebitda ebitda ebitda receita receita receita receita pe pe pe pe"
+   "ue ue ue ue ue ue rent rent rent rent rent rent";}
+#dashboard .a-hero{grid-area:hero;padding:0}
+#dashboard .a-caixa{grid-area:caixa} #dashboard .a-inad{grid-area:inad}
+#dashboard .a-receita{grid-area:receita} #dashboard .a-pe{grid-area:pe} #dashboard .a-ue{grid-area:ue}
+#dashboard .a-ebitda{grid-area:ebitda} #dashboard .a-rent{grid-area:rent}
+
+/* hero strip */
+#dashboard #kResumo{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:0;height:100%}
+#dashboard #kResumo .kpi{background:var(--px-tile);border:1px solid var(--px-line);border-radius:8px;
+  padding:9px 13px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+#dashboard #kResumo .kpi::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--px-acc);opacity:.55}
+#dashboard #kResumo .kpi.good::before{background:var(--px-green)} #dashboard #kResumo .kpi.bad::before{background:var(--px-red)}
+#dashboard #kResumo .kpi.warn::before{background:var(--px-amber)} #dashboard #kResumo .kpi.info::before{background:#3f3f46}
+#dashboard #kResumo .kpi .label{color:#94a3b8;font-size:10.5px;margin-bottom:3px}
+#dashboard #kResumo .kpi .value{font-size:19px;font-weight:720;letter-spacing:-.4px;color:#f4f4f5}
+#dashboard #kResumo .kpi .sub{color:#64748b;font-size:9px;margin-top:2px}
+#dashboard #kResumo .kpi.good .value{color:var(--px-green)} #dashboard #kResumo .kpi.bad .value{color:var(--px-red)}
+#dashboard #kResumo .kpi.warn .value{color:var(--px-amber)} #dashboard #kResumo .kpi.info .value{color:#e4e4e7}
+
+/* tiles */
+#dashboard .tile{background:var(--px-tile);border:1px solid var(--px-line);border-radius:8px;
+  padding:11px 13px;display:flex;flex-direction:column;min-height:0;overflow:hidden;
+  box-shadow:0 1px 6px rgba(0,0,0,.4)}
+#dashboard .tile-h{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex:0 0 auto}
+#dashboard .tile-h h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--px-brand);margin:0}
+#dashboard .tile-h .right{margin-left:auto}
+#dashboard .tile-chart{flex:1;min-height:0;position:relative}
+#dashboard .tile-chart canvas{position:absolute;inset:0}
+
+/* kpis dentro das tiles */
+#dashboard .tile .cards{display:grid;gap:7px;margin:0 0 8px;flex:0 0 auto}
+#dashboard .tile .kpi{background:var(--px-tile2);border:1px solid rgba(255,255,255,.05);
+  border-radius:6px;padding:7px 9px;border-left:3px solid transparent}
+#dashboard .tile .kpi.good{border-left-color:var(--px-green)} #dashboard .tile .kpi.bad{border-left-color:var(--px-red)}
+#dashboard .tile .kpi.warn{border-left-color:var(--px-amber)}
+#dashboard .tile .kpi .label{color:#94a3b8;font-size:10px;margin-bottom:1px}
+#dashboard .tile .kpi .value{font-size:15px;font-weight:680;letter-spacing:-.3px;color:#f4f4f5}
+#dashboard .tile .kpi .sub{color:#64748b;font-size:8.5px;margin-top:1px}
+#dashboard .tile .kpi.good .value{color:var(--px-green)} #dashboard .tile .kpi.bad .value{color:var(--px-red)}
+#dashboard .tile .kpi.warn .value{color:var(--px-amber)} #dashboard .tile .kpi.info .value{color:#e4e4e7}
+#dashboard #kReceita{grid-template-columns:repeat(3,1fr)}
+#dashboard #kInad{grid-template-columns:repeat(3,1fr)}
+#dashboard #kPE{grid-template-columns:repeat(2,1fr)}
+#dashboard #kUE{grid-template-columns:repeat(6,1fr)}
+#dashboard #kRent{grid-template-columns:repeat(4,1fr)}
+
+/* gauge */
+#dashboard .gauge{margin:0}
+#dashboard .gauge-head{display:flex;align-items:baseline;gap:10px;margin-bottom:9px}
+#dashboard .gauge-val{font-size:29px;font-weight:760;letter-spacing:-1px;line-height:1}
+#dashboard .gauge-tag{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px}
+#dashboard .gauge-track{position:relative;height:17px;border-radius:6px;overflow:hidden;background:var(--px-tile2)}
+#dashboard .gseg{position:absolute;top:0;height:100%}
+#dashboard .gauge-needle{position:absolute;top:-5px;height:27px;width:3px;background:#fff;border-radius:2px;
+  box-shadow:0 0 0 2px rgba(0,0,0,.55);transform:translateX(-50%);transition:left .5s ease}
+#dashboard .gauge-needle::after{content:'';position:absolute;top:-6px;left:50%;transform:translateX(-50%);
+  border-left:5px solid transparent;border-right:5px solid transparent;border-top:7px solid #fff}
+#dashboard .gauge-scale{display:flex;justify-content:space-between;margin-top:5px;font-size:9.5px;color:var(--px-muted)}
+#dashboard .gauge-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:10px}
+#dashboard .gauge-legend span{display:flex;align-items:center;gap:5px;color:var(--px-muted)}
+#dashboard .gauge-legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* barras benchmark */
+#dashboard .barcmp{display:flex;flex-direction:column;gap:5px;margin:2px 0 0}
+#dashboard .barcmp-row{display:grid;grid-template-columns:1.25fr 2fr auto;align-items:center;gap:8px;font-size:10.5px}
+#dashboard .barcmp-row .lbl{color:#94a3b8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#dashboard .barcmp-bar{height:11px;border-radius:4px;background:#27272a;overflow:hidden}
+#dashboard .barcmp-bar>i{display:block;height:100%;border-radius:4px}
+#dashboard .barcmp-row .vv{text-align:right;font-weight:600;font-size:10.5px;white-space:nowrap}
+
+/* semáforo RAG */
+#dashboard .rag{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle;flex-shrink:0}
+#dashboard .rag-green{background:var(--px-green);box-shadow:0 0 5px rgba(16,185,129,.5)}
+#dashboard .rag-amber{background:var(--px-amber);box-shadow:0 0 5px rgba(245,158,11,.5)}
+#dashboard .rag-red{background:var(--px-red);box-shadow:0 0 5px rgba(244,63,94,.5)}
+
+/* pill */
+#dashboard .pill{font-size:9.5px;padding:2px 8px;border-radius:20px;
+  border:1px solid rgba(75,124,243,.3);color:var(--c1);background:rgba(75,124,243,.08)}
+
+/* nota */
+#dashboard .px-note{color:var(--px-muted);font-size:9.5px;margin:6px 0 0;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#dashboard .px-empty{color:var(--px-muted);font-size:12px;padding:6px 0}
+
+/* unit economics */
+#dashboard .ue-wrap{flex:1;min-height:0;overflow:auto}
+#dashboard .ue-wrap.ue-dual{display:grid;grid-template-columns:1fr 1fr;gap:10px;overflow:auto}
+#dashboard .ue-col{display:flex;flex-direction:column;min-width:0}
+#dashboard .ue-col-head{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--px-brand);padding:0 5px 5px;border-bottom:1px solid var(--px-line);margin-bottom:4px}
+#dashboard .ue-dre{width:100%;border-collapse:collapse;font-size:11px}
+#dashboard .ue-dre td{padding:3px 5px;line-height:1.4;white-space:nowrap}
+#dashboard .ue-dre .lbl{width:99%;color:#a1a1aa}
+#dashboard .ue-dre .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;min-width:90px}
+#dashboard .ue-dre .pct{text-align:right;color:#64748b;font-size:9.5px;min-width:32px}
+#dashboard .ue-dre .ded .lbl{padding-left:14px;color:#94a3b8}
+#dashboard .ue-dre .ded .val{color:var(--px-red);font-weight:400}
+#dashboard .ue-dre .ded .pct{color:#64748b}
+#dashboard .ue-dre .tot td{border-top:1px solid rgba(255,255,255,.07);padding-top:6px;padding-bottom:6px;font-weight:700}
+#dashboard .ue-dre .tot.acc .val{color:var(--px-acc)}
+#dashboard .ue-dre .tot.good .val{color:var(--px-green)}
+#dashboard .ue-dre .tot.bad .val{color:var(--px-red)}
+#dashboard .ue-dre .tot .lbl{color:#e4e4e7}
+#dashboard .ue-dre .sep td{padding-top:10px;border-top:1px dashed rgba(255,255,255,.06)}
+#dashboard .ue-dre .head td{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#64748b}
+
+/* barras de categorias de saída */
+#dashboard .cat-bars{display:flex;flex-direction:column;gap:5px;padding:2px 0;height:100%;justify-content:space-evenly;overflow:hidden}
+#dashboard .cat-row{display:grid;grid-template-columns:110px 1fr 42px;align-items:center;gap:8px}
+#dashboard .cat-row .cat-lbl{color:#94a3b8;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+#dashboard .cat-bar-track{height:20px;border-radius:4px;background:var(--px-line);overflow:hidden}
+#dashboard .cat-bar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding:0 7px;min-width:8%}
+#dashboard .cat-bar-val{font-size:10px;font-weight:600;color:rgba(255,255,255,.92);white-space:nowrap}
+#dashboard .cat-pct{font-size:11px;font-weight:700;color:#94a3b8;text-align:right;white-space:nowrap}
+#dashboard .cat-detail{grid-column:1/-1;font-size:9px;color:#64748b;line-height:1.4;padding-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+@media(max-height:780px),(max-width:1080px){
+  #dashboard{height:auto;overflow:auto}
+  #dashboard .px-bento{grid-template-rows:auto}
+  #dashboard .tile{overflow:visible}
+  #dashboard .tile-chart{min-height:160px}
+}
+
+/* tela de carregamento / erro */
+#loadScreen{position:fixed;inset:0;background:#080b10;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;z-index:999}
+#loadScreen .load-logo{font-size:32px;color:var(--px-brand);font-weight:800;letter-spacing:-.5px}
+#loadScreen .load-msg{font-size:13px;color:var(--px-muted);text-align:center;max-width:480px;line-height:1.6}
+#loadScreen .load-err{color:var(--px-red);font-size:12px;max-width:500px;text-align:center;line-height:1.6;
+  background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:8px;padding:12px 16px}
+#loadScreen .load-hint{font-size:11px;color:#3f3f46;max-width:440px;text-align:center;line-height:1.7}
+#loadScreen code{background:#1e2840;border-radius:4px;padding:2px 6px;font-size:10.5px;color:#94a3b8}
+</style>
+</head>
+<body>
+
+<!-- Tela de carregamento (visível até os dados chegarem) -->
+<div id="loadScreen">
+  <div class="load-logo">Mentat</div>
+  <div class="load-msg" id="loadMsg">Carregando painel...</div>
+</div>
+
+<!-- Dashboard (oculto até dados carregados) -->
+<div id="dashboard" style="display:none">
+
+  <!-- Barra de topo com logo e timestamp de publicação -->
+  <div class="px-topbar">
+    <div class="logo-mark">
+      <svg viewBox="0 0 64 100" width="22" height="34">
+        <defs><linearGradient id="mg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f9e9bf"/><stop offset="45%" stop-color="#dcab5b"/>
+          <stop offset="100%" stop-color="#9c6a2a"/>
+        </linearGradient></defs>
+        <g fill="url(#mg)">
+          <path d="M60 6 L60 22 L32 48 L32 32 Z"/>
+          <path fill-rule="evenodd" d="M32 40 L56 66 L32 92 L8 66 Z M32 54 L43 66 L32 78 L21 66 Z"/>
+        </g>
+      </svg>
+      <div><div class="logo-name">Mentat</div><div class="logo-sub">FP&amp;A</div></div>
+    </div>
+    <h1>Painel Executivo</h1>
+    <div class="spacer"></div>
+    <div class="ts-badge" id="tsBadge"></div>
+  </div>
+
+  <!-- Barra de filtro de período (afeta tile de Saídas — outros tiles: período completo) -->
+  <div class="px-filter">
+    <label>Período</label>
+    <input type="month" id="pxDe" title="De">
+    <span class="px-filter-sep">→</span>
+    <input type="month" id="pxAte" title="Até">
+    <div class="px-presets">
+      <button class="px-preset" data-px-n="3">3m</button>
+      <button class="px-preset" data-px-n="6">6m</button>
+      <button class="px-preset" data-px-n="12">12m</button>
+      <button class="px-preset" data-px-ytd="1">YTD</button>
+    </div>
+    <span class="px-filter-lock">↕ Saldo: período fixo</span>
+  </div>
+
+  <div class="px-bento">
+
+    <div class="a-hero" id="kResumo"></div>
+
+    <section class="tile a-caixa">
+      <div class="tile-h"><h3>Caixa — Rolling 13 Semanas</h3><span class="pill right" style="color:#3f3f46;border-color:#3f3f46">↕ travado</span></div>
+      <div class="cards" id="kCaixa" style="grid-template-columns:repeat(3,1fr)"></div>
+      <div class="tile-chart"><canvas id="chCaixa"></canvas></div>
+    </section>
+
+    <section class="tile a-inad">
+      <div class="tile-h"><h3>Inadimplência vs Benchmark</h3><span class="pill right">≤8% · 8–15% · &gt;15%</span></div>
+      <div id="gaugeInad"></div>
+      <div class="cards" id="kInad" style="margin-top:9px"></div>
+      <div class="barcmp" id="benchBars"></div>
+    </section>
+
+    <section class="tile a-receita">
+      <div class="tile-h"><h3>Receita</h3></div>
+      <div class="cards" id="kReceita"></div>
+      <div class="tile-chart"><canvas id="chReceita"></canvas></div>
+    </section>
+
+    <section class="tile a-pe">
+      <div class="tile-h"><h3>Ponto de Equilíbrio &amp; GAO</h3><span class="pill right" id="pxPEFonte"></span></div>
+      <div class="cards" id="kPE"></div>
+      <div class="barcmp" id="peBridge" style="margin-top:6px"></div>
+      <p class="px-note" id="pePeNota"></p>
+    </section>
+
+    <section class="tile a-ue">
+      <div class="tile-h"><h3>Unit Economics — por contrato</h3><span class="pill right" id="uePxFonte"></span></div>
+      <div class="cards" id="kUE"></div>
+      <div class="ue-wrap ue-dual">
+        <div class="ue-col">
+          <div class="ue-col-head">Paid CAC</div>
+          <table class="ue-dre"><tbody id="uePxDrePaid"></tbody></table>
+        </div>
+        <div class="ue-col">
+          <div class="ue-col-head">Fully-loaded CAC</div>
+          <table class="ue-dre"><tbody id="uePxDreFull"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+    <section class="tile a-rent">
+      <div class="tile-h"><h3>Saídas — Top Categorias</h3><span class="pill right" id="rentPct"></span></div>
+      <div class="tile-chart"><canvas id="chRent"></canvas></div>
+      <div class="cards" id="kRent" style="margin-top:8px"></div>
+    </section>
+
+    <section class="tile a-ebitda">
+      <div class="tile-h"><h3>EBITDA &amp; Geração de Caixa — Trimestral</h3><span class="pill right">Q3/2025 → atual</span></div>
+      <div id="kEbitda"></div>
+      <div class="tile-chart"><canvas id="chEbitda"></canvas></div>
+    </section>
+
+  </div>
+</div>
+
+<script src="painel-embedded.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* bin ID padrão — atualizado automaticamente pelo app */
+var DEFAULT_BIN='6a3d7bf7f5f4af5e293099a8';
+
+/* --- lê ?dados= ou ?bin= da URL; fallback: bin padrão acima --- */
+var params=new URLSearchParams(location.search);
+var dadosUrl=params.get('dados');
+var binId=params.get('bin')||DEFAULT_BIN;
+
+function showErr(msg,hint){
+  var el=document.getElementById('loadMsg');
+  el.innerHTML='<div class="load-err">'+msg+'</div>'+(hint?'<div class="load-hint">'+hint+'</div>':'');
+}
+
+/* --- stubs temporários (enquanto dados não chegam) --- */
+var D={};
+function stub(fn){ window[fn]=function(){ return D[fn]||null; }; }
+['rxBuild','dreBreakeven','caixaHoje','dreHistMonthly','dfcFluxoByMonth','dfcCategoriasTop'].forEach(stub);
+window.rollSeries=function(){ return D.roll||null; };
+window.pxGetRange=function(){
+  var de=document.getElementById('pxDe'), ate=document.getElementById('pxAte');
+  if(de&&ate&&de.value&&ate.value) return {de:de.value,ate:ate.value};
+  return null;
+};
+
+/* --- configura filtros de data com base nos dados disponíveis --- */
+function setupFiltros(dados){
+  var meses=[];
+  if(dados.dfcCatTop&&dados.dfcCatTop.meses) meses=dados.dfcCatTop.meses;
+  else if(dados.dreHist) meses=Object.keys(dados.dreHist).sort();
+  var ate=meses.length?meses[meses.length-1]:null;
+  var de=meses.length?meses[Math.max(0,meses.length-6)]:null;
+  if(de&&ate){
+    var deEl=document.getElementById('pxDe'), ateEl=document.getElementById('pxAte');
+    if(deEl&&!deEl.value) deEl.value=de;
+    if(ateEl&&!ateEl.value) ateEl.value=ate;
+  }
+  /* presets */
+  document.querySelectorAll('.px-preset').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var n=parseInt(btn.getAttribute('data-px-n')||'0');
+      var ytd=btn.getAttribute('data-px-ytd');
+      var last=meses.length?meses[meses.length-1]:null;
+      if(!last) return;
+      var deEl=document.getElementById('pxDe'), ateEl=document.getElementById('pxAte');
+      if(ytd){
+        var yr=last.slice(0,4);
+        if(deEl) deEl.value=yr+'-01'; if(ateEl) ateEl.value=last;
+      } else if(n){
+        var idx=meses.indexOf(last);
+        var fromIdx=Math.max(0,idx-(n-1));
+        if(deEl) deEl.value=meses[fromIdx]; if(ateEl) ateEl.value=last;
+      }
+      document.querySelectorAll('.px-preset').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      window.painelRenderAll&&window.painelRenderAll();
+    });
+  });
+  /* escuta mudanças nos inputs */
+  ['pxDe','pxAte'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener('change',function(){ window.painelRenderAll&&window.painelRenderAll(); });
+  });
+}
+
+/* --- formata timestamp de publicação --- */
+function fmtTs(iso){
+  try{
+    var d=new Date(iso);
+    return 'Publicado em '+d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})+
+      ' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return iso; }
+}
+
+/* --- resolve URL de busca --- */
+var url;
+if(binId){
+  url='https://api.jsonbin.io/v3/b/'+binId+'/latest';
+} else {
+  /* Google Drive: transforma link de compartilhamento em link direto */
+  var m=dadosUrl.match(/\/file\/d\/([^/]+)\//);
+  url=m?'https://drive.google.com/uc?export=download&id='+m[1]:dadosUrl;
+}
+document.getElementById('loadMsg').textContent='Baixando dados do painel...';
+
+fetch(url)
+  .then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status+' — verifique se o link é público e acessível.');
+    return r.json();
+  })
+  .then(function(raw){
+    /* JSONBin encapsula em {record: {...}} — extrai o payload real */
+    var dados=raw&&raw.record?raw.record:raw;
+    /* popula stubs com dados reais */
+    D.rxBuild          = dados.rx;
+    D.dreBreakeven     = dados.dreBreakeven;
+    D.caixaHoje        = dados.caixaHoje;
+    D.dreHistMonthly   = dados.dreHist;
+    D.dfcFluxoByMonth  = dados.dfcFluxo;
+    D.dfcCategoriasTop = dados.dfcCatTop;
+    D.roll             = dados.roll;
+
+    /* redefine stubs com dados reais (dfcCategoriasTop ignora o parâmetro n — já vem com 40) */
+    window.rxBuild          = function(){ return dados.rx||null; };
+    window.dreBreakeven     = function(){ return dados.dreBreakeven||null; };
+    window.caixaHoje        = function(){ return dados.caixaHoje||null; };
+    window.dreHistMonthly   = function(){ return dados.dreHist||null; };
+    window.dfcFluxoByMonth  = function(){ return dados.dfcFluxo||null; };
+    window.dfcCategoriasTop = function(){ return dados.dfcCatTop||null; };
+    window.rollSeries       = function(){ return dados.roll||null; };
+    window.rxData           = function(){ return dados.rx||null; };
+
+    /* timestamp na barra */
+    if(dados.ts){
+      var badge=document.getElementById('tsBadge');
+      if(badge) badge.textContent=fmtTs(dados.ts);
+    }
+
+    /* mostra o dashboard, esconde loading */
+    document.getElementById('loadScreen').style.display='none';
+    document.getElementById('dashboard').style.display='flex';
+
+    setupFiltros(dados);
+
+    /* renderiza */
+    if(window.painelRenderAll) window.painelRenderAll();
+  })
+  .catch(function(err){
+    showErr(
+      'Erro ao carregar dados: '+err.message,
+      'Dicas:<br>'
+      +'• O arquivo precisa ser <b>público</b> (qualquer pessoa com o link pode ver)<br>'
+      +'• Para Google Drive: use "Compartilhar → Qualquer pessoa com o link → Visualizador"<br>'
+      +'• Verifique se o link está completo e correto'
+    );
+  });
+
+})();
+</script>
+</body>
+</html>
