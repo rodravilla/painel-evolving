@@ -252,12 +252,57 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   background:rgba(244,63,94,.08);border:1px solid rgba(244,63,94,.2);border-radius:8px;padding:12px 16px}
 #loadScreen .load-hint{font-size:11px;color:#3f3f46;max-width:440px;text-align:center;line-height:1.7}
 #loadScreen code{background:#1e2840;border-radius:4px;padding:2px 6px;font-size:10.5px;color:#94a3b8}
+
+/* tela de login (acesso restrito — gate client-side) */
+#loginScreen{position:fixed;inset:0;background:radial-gradient(120% 120% at 50% 0%,#0d1826,#080b10);
+  display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px}
+#loginScreen .login-card{width:100%;max-width:340px;background:var(--px-tile);border:1px solid var(--px-line);
+  border-radius:14px;padding:28px 26px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#loginScreen .login-logo{display:flex;align-items:center;gap:12px;font-size:26px;font-weight:800;
+  color:#fff;letter-spacing:-.5px;text-transform:lowercase;margin-bottom:4px}
+#loginScreen .login-sub{font-size:11px;color:var(--px-muted);margin-bottom:18px}
+#loginScreen label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--px-muted);margin:12px 0 5px}
+#loginScreen input{width:100%;background:#080b10;border:1px solid var(--px-line);border-radius:8px;
+  padding:11px 12px;color:#e4e4e7;font-size:16px;box-sizing:border-box;outline:none}
+#loginScreen input:focus{border-color:#27c4cd}
+#loginScreen button{width:100%;margin-top:18px;background:linear-gradient(135deg,#27c4cd,#37b277);
+  border:none;border-radius:8px;padding:13px;color:#04221f;font-size:14px;font-weight:700;cursor:pointer}
+#loginScreen button:active{transform:translateY(1px)}
+#loginScreen .login-err{display:none;color:var(--px-red);font-size:12px;margin-top:12px;text-align:center}
 </style>
 </head>
 <body>
 
+<!-- Tela de login (acesso restrito — gate client-side) -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 100 100" width="34" height="34" role="img" aria-label="Evolving">
+        <defs><linearGradient id="evgLogin" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#27c4cd"/><stop offset="100%" stop-color="#37b277"/>
+        </linearGradient></defs>
+        <rect x="4" y="4" width="92" height="92" rx="26" fill="url(#evgLogin)"/>
+        <g fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round">
+          <path d="M67.2 74.6 A30 30 0 1 1 79.5 55.2"/><line x1="28" y1="50" x2="76" y2="50"/>
+        </g>
+      </svg>
+      <span>evolving</span>
+    </div>
+    <div class="login-sub">Painel Executivo — acesso restrito</div>
+    <form id="lgForm" autocomplete="on">
+      <label for="lgUser">Usuário</label>
+      <input id="lgUser" type="text" value="evolving" autocomplete="username" autocapitalize="none" spellcheck="false"/>
+      <label for="lgPwd">Senha</label>
+      <input id="lgPwd" type="password" autocomplete="current-password" placeholder="••••••••"/>
+      <div class="login-err" id="lgErr">Usuário ou senha incorretos.</div>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+</div>
+
 <!-- Tela de carregamento (visível até os dados chegarem) -->
-<div id="loadScreen">
+<div id="loadScreen" style="display:none">
   <div class="load-logo">
     <svg viewBox="0 0 100 100" width="56" height="56" role="img" aria-label="Evolving">
       <defs><linearGradient id="evgLoad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -530,13 +575,50 @@ function carregar(silencioso){
     });
 }
 
-carregar(false);
-/* AUTO-ATUALIZAÇÃO: o sócio não precisa recarregar a página.
-   Re-busca a cada 5 min e também quando ele volta para a aba (visibilitychange). */
-setInterval(function(){ carregar(true); }, 5*60*1000);
-document.addEventListener('visibilitychange',function(){
-  if(document.visibilityState==='visible' && !primeiraCarga) carregar(true);
-});
+/* inicia o carregamento + auto-atualização — SÓ chamado após o login validar */
+function iniciar(){
+  carregar(false);
+  /* AUTO-ATUALIZAÇÃO: o sócio não precisa recarregar a página.
+     Re-busca a cada 5 min e também quando ele volta para a aba (visibilitychange). */
+  setInterval(function(){ carregar(true); }, 5*60*1000);
+  document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible' && !primeiraCarga) carregar(true);
+  });
+}
+
+/* ===== LOGIN (gate client-side) =====
+   AVISO: é um DETERRENTE, não segurança real — a página é estática e os dados ficam num bin público.
+   Guardamos só o HASH SHA-256 (nunca a senha em texto) e só buscamos os dados DEPOIS do login. */
+var AUTH_HASH='59c7100e7135b336308ffe810dd9e5ead03b75ec87bc01a497c3e2d9ae60e69b'; // sha256('evolving::$ocios00')
+var AUTH_KEY='pxSocioAuth_v1';
+function sha256hex(s){
+  return crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)).then(function(buf){
+    return Array.prototype.map.call(new Uint8Array(buf), function(b){ return ('0'+b.toString(16)).slice(-2); }).join('');
+  });
+}
+function entrar(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('loadScreen').style.display='flex';
+  iniciar();
+}
+function tentarLogin(){
+  var u=(document.getElementById('lgUser')||{}).value||'';
+  var p=(document.getElementById('lgPwd')||{}).value||'';
+  var err=document.getElementById('lgErr');
+  sha256hex(u.trim()+'::'+p).then(function(h){
+    if(h===AUTH_HASH){ try{ localStorage.setItem(AUTH_KEY,'1'); }catch(e){} entrar(); }
+    else{ if(err) err.style.display='block'; var pf=document.getElementById('lgPwd'); if(pf){ pf.value=''; pf.focus(); } }
+  }).catch(function(e){ // crypto.subtle exige HTTPS/localhost; no link do GitHub Pages funciona
+    if(err){ err.textContent='Navegador não suporta login seguro (use o link https).'; err.style.display='block'; }
+  });
+}
+(function(){
+  var autenticado=false; try{ autenticado=localStorage.getItem(AUTH_KEY)==='1'; }catch(e){}
+  if(autenticado){ entrar(); return; }                 // já logou nesta máquina → entra direto
+  var f=document.getElementById('lgForm');
+  if(f) f.addEventListener('submit',function(e){ e.preventDefault(); tentarLogin(); });
+  var pf=document.getElementById('lgPwd'); if(pf) pf.focus();
+})();
 
 })();
 </script>
