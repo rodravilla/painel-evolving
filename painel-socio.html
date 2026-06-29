@@ -286,6 +286,10 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   border-bottom:1px solid #1f262f;position:sticky;top:0;z-index:5}
 #raiox .rx-topbar h1{font-size:14px;font-weight:700;color:#e6edf3;margin:0}
 #raiox .rx-topbar .spacer{flex:1}
+#raiox .rx-filter{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:6px}
+#raiox .rx-filter label{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);text-transform:none}
+#raiox .rx-filter input[type=month]{background:#080b10;border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:#e4e4e7;font-size:13px;color-scheme:dark}
+#raiox .rx-filter input[type=month]:focus{outline:1px solid #27c4cd}
 #raiox .rx-scroll{padding:18px;max-width:1400px;margin:0 auto}
 #raiox .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:18px}
 #raiox .card h3{font-size:15px;margin:0 0 12px;color:#e6edf3;font-weight:650}
@@ -478,6 +482,11 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   <div class="rx-topbar">
     <button class="px-navbtn" onclick="pxShowDash&&pxShowDash()" title="Voltar ao painel"><span class="ar">←</span> Voltar ao painel</button>
     <h1>Raio-X de Performance</h1>
+    <div class="rx-filter">
+      <label>De <input id="rxDe" type="month"></label>
+      <label>Até <input id="rxAte" type="month"></label>
+      <button id="rxReset" class="px-navbtn" title="Voltar à prévia dos últimos 6 meses">Últimos 6m</button>
+    </div>
     <div class="spacer"></div>
     <span id="rxStatus" class="pill"></span>
   </div>
@@ -667,22 +676,73 @@ function iniciar(){
 }
 
 /* ===== alterna Painel ↔ Raio-X (mesmo link, sem recarregar) =====
-   O raiox.js é global; sobrescrevemos window.rxBuild p/ ele ler o JSON publicado (DADOS.rx),
-   e chamamos rxRender() só quando a view fica visível (Chart.js precisa do canvas medido). */
-window.rxBuild = function(){ return DADOS?DADOS.rx||null:null; };   // garante que o Raio-X leia o snapshot
+   O raiox.js é global. Sobrescrevemos rxBuild p/ ler o JSON publicado (DADOS.rx) e FILTRAR por data:
+   - no DASHBOARD: filtra pelo range do próprio painel (opts) — comportamento de hoje;
+   - no RAIO-X: filtra pelas datas #rxDe/#rxAte (default = últimos 6 meses).
+   O total da coluna "Período" é recalculado fielmente (espelha o T do rxBuild do app). */
+var _pxRaioxActive=false;
+function _pxRecomputeT(months,M,fullT){
+  var T={},KEYS=['faturamento','avista','recebidoCaixa','cashColl','mrrReal','atrasado','recebTot','inad','vencidoTot','judic','dsoNum','dsoDen','novos','receitaNova','mkt','entCaixa','saiCaixa','geracao','invest','agendadas','feitas','noshow','fatVendas'];
+  KEYS.forEach(function(k){ T[k]=0; });
+  months.forEach(function(m){ var x=M[m]||{}; KEYS.forEach(function(k){ T[k]+=(x[k]||0); }); });
+  T.avistaPct=T.recebidoCaixa>0?T.avista/T.recebidoCaixa*100:0;
+  T.cashCollPct=T.faturamento>0?T.cashColl/T.faturamento*100:0;
+  T.atrasoPct=T.recebTot>0?T.atrasado/T.recebTot*100:0;
+  T.recPct=T.faturamento>0?T.mrrReal/T.faturamento*100:0;
+  T.dso=T.dsoDen>0?T.dsoNum/T.dsoDen:0;
+  T.saldo=months.length?((M[months[months.length-1]]||{}).saldo||0):0;
+  var burn=0,n=0; months.forEach(function(m){ var x=M[m]||{}; burn+=((x.saiCaixa||0)-(x.recebidoCaixa||0)); n++; });
+  var avgBurn=n?burn/n:0; T.avgBurn=avgBurn; T.runway=avgBurn>0?T.saldo/avgBurn:Infinity;
+  T.carteira=fullT?fullT.carteira:0;   // carteira/aging = snapshot de HOJE (independe do range)
+  T.inadPct=T.mrrReal>0?T.inad/T.mrrReal*100:0;
+  T.ticket=T.novos>0?((T.fatVendas>0?T.fatVendas:T.receitaNova)/T.novos):0;
+  T.cac=T.novos>0?((T.invest>0?T.invest:T.mkt)/T.novos):0;
+  var cw=0; months.forEach(function(m){ var x=M[m]||{}; cw+=((x.cacTotal||0)*(x.novos||0)); });
+  T.cacTotal=T.novos>0?cw/T.novos:0;
+  T.investPct=T.faturamento>0?T.invest/T.faturamento*100:0;
+  T.cacComPct=T.ticket>0?T.cac/T.ticket*100:0;
+  T.cacTotPct=T.ticket>0?T.cacTotal/T.ticket*100:0;
+  T.roas=T.invest>0?T.fatVendas/T.invest:0; T.roi=T.roas>0?T.roas-1:0;
+  T.noshowPct=T.agendadas>0?T.noshow/T.agendadas*100:0;
+  T.ltv=T.ticket; T.ltvCac=T.cac>0?T.ltv/T.cac:0;
+  return T;
+}
+window.rxBuild = function(opts){
+  var full=DADOS?DADOS.rx:null;
+  if(!full||!full.months) return full;
+  var de=null, ate=null;
+  if(_pxRaioxActive){
+    var deEl=document.getElementById('rxDe'), ateEl=document.getElementById('rxAte');
+    de=deEl&&deEl.value?deEl.value:null; ate=ateEl&&ateEl.value?ateEl.value:null;
+  } else if(opts&&opts.de&&opts.ate){ de=opts.de; ate=opts.ate; }   // dashboard respeita seu próprio filtro
+  if(!de&&!ate) return full;
+  var months=full.months.filter(function(m){ return (!de||m>=de)&&(!ate||m<=ate); });
+  if(!months.length) return full;
+  var M={}; months.forEach(function(m){ if(full.M[m]) M[m]=full.M[m]; });
+  return { months:months, M:M, T:_pxRecomputeT(months,M,full.T), mktFonte:full.mktFonte, aging:full.aging };
+};
+window.rxAllMonths   = function(){ return (DADOS&&DADOS.rx&&DADOS.rx.months)?DADOS.rx.months.slice():[]; };
+window.rxDefaultRange = function(){   // prévia padrão do Raio-X = últimos 6 meses
+  var ms=(DADOS&&DADOS.rx&&DADOS.rx.months)?DADOS.rx.months:[];
+  if(!ms.length) return {de:'',ate:''};
+  return { de:ms[Math.max(0,ms.length-6)], ate:ms[ms.length-1] };
+};
 window.pxShowRaiox = function(){
+  _pxRaioxActive=true;
   var dash=document.getElementById('dashboard'), rx=document.getElementById('raiox');
   if(dash) dash.style.display='none';
   if(rx) rx.style.display='block';
   try{ if(typeof window.rxRender==='function') window.rxRender(); }catch(e){ console.error('Raio-X:',e); }
-  var st=document.getElementById('rxStatus');   // tira o "painel não carregado" (é o painel comercial do Google, irrelevante aqui)
+  var st=document.getElementById('rxStatus');   // tira o "painel não carregado" (painel comercial do Google, irrelevante aqui)
   if(st) st.textContent=st.textContent.replace(/\s*·\s*painel n[ãa]o carregado\s*$/i,'');
   if(rx) rx.scrollTop=0;
 };
 window.pxShowDash = function(){
+  _pxRaioxActive=false;
   var dash=document.getElementById('dashboard'), rx=document.getElementById('raiox');
   if(rx) rx.style.display='none';
   if(dash) dash.style.display='flex';
+  if(typeof window.painelRenderAll==='function') window.painelRenderAll();   // re-render c/ snapshot completo (caso auto-refresh tenha rodado no Raio-X)
 };
 
 /* ===== LOGIN (gate client-side) =====

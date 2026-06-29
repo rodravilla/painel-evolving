@@ -530,17 +530,20 @@ window.painelRenderAll = painelRenderAll;
    - categorias: só DRE (competência), top 15 — DFC era redundante */
 function pxSlimRx(rx){
   if(!rx) return null;
-  var M={};
-  Object.keys(rx.M||{}).forEach(function(m){
-    var s=rx.M[m], o={};
+  var M={}, months=[];
+  (rx.months||[]).forEach(function(m){
+    var s=rx.M[m]; if(!s) return;
+    // janela larga (p/ o filtro de data do Raio-X) → descarta meses totalmente vazios
+    if(!(s.faturamento||s.recebidoCaixa||s.saiCaixa||s.mrrReal||s.inad||s.novos)) return;
+    var o={};
     for(var k in s){ var v=s[k];
       if(k==='recebParc') continue;                 // lista de parcelas por cliente — drill-down, fora do painel
       if(v&&typeof v==='object'&&typeof v.add==='function') continue;   // Set (ativosRec) — não serializa
       if(typeof v==='number') o[k]=Math.round(v*100)/100; else o[k]=v;
     }
-    M[m]=o;
+    M[m]=o; months.push(m);
   });
-  return { months:rx.months, M:M, T:rx.T, mktFonte:rx.mktFonte, aging:rx.aging };
+  return { months:months, M:M, T:rx.T, mktFonte:rx.mktFonte, aging:rx.aging };
 }
 function pxSlimRoll(r){
   if(!r||!r.weeks) return null;
@@ -556,7 +559,7 @@ window.pxSerializar = function(){
   var saldo=cx&&cx.saldoHoje!=null?cx.saldoHoje:null;
   var roll=saldo!=null?wCall('rollSeries',saldo,null):wCall('rollSeries');
   return {
-    rx:pxSlimRx(wCall('rxBuild',null)),
+    rx:pxSlimRx(wCall('rxBuild',{de:_ymAdd(_ymNow(),-14),ate:_ymNow()})),   // 15 meses p/ o filtro de data do Raio-X
     dreBreakeven:wCall('dreBreakeven'),
     dreUnitInputs:wCall('dreUnitInputs',null),
     caixaHoje:cx,
