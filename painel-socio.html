@@ -270,6 +270,61 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   border:none;border-radius:8px;padding:13px;color:#04221f;font-size:14px;font-weight:700;cursor:pointer}
 #loginScreen button:active{transform:translateY(1px)}
 #loginScreen .login-err{display:none;color:var(--px-red);font-size:12px;margin-top:12px;text-align:center}
+
+/* ===== botões de navegação Painel ↔ Raio-X ===== */
+.px-navbtn{background:var(--px-tile2);border:1px solid rgba(255,255,255,.12);color:#cbd5e1;
+  border-radius:7px;padding:6px 13px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .12s;flex-shrink:0}
+.px-navbtn:hover{border-color:#27c4cd;color:#fff}
+.px-navbtn .ar{color:#37b277;font-weight:800}
+
+/* ===== view Raio-X (mesmo relatório do app, tema escuro) ===== */
+#raiox{display:none;position:fixed;inset:0;z-index:40;height:100vh;overflow-y:auto;overflow-x:hidden;
+  background:#080b10;color:#e6edf3;
+  --txt:#e6edf3;--muted:#8b97a4;--line:#1f262f;--panel:#0f1520;--panel2:#151c2a;
+  --green:#22c55e;--red:#ef4444;--amber:#f59e0b;--accent:#3b82f6;--accent2:#22d3ee;--gold:#dcab5b;--radius:12px}
+#raiox .rx-topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#0f1520;
+  border-bottom:1px solid #1f262f;position:sticky;top:0;z-index:5}
+#raiox .rx-topbar h1{font-size:14px;font-weight:700;color:#e6edf3;margin:0}
+#raiox .rx-topbar .spacer{flex:1}
+#raiox .rx-scroll{padding:18px;max-width:1400px;margin:0 auto}
+#raiox .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:18px}
+#raiox .card h3{font-size:15px;margin:0 0 12px;color:#e6edf3;font-weight:650}
+#raiox .chart-card canvas{max-height:300px}
+#raiox .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:18px}
+#raiox .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+#raiox .kpi .label{color:var(--muted);font-size:12px;margin-bottom:6px}
+#raiox .kpi .value{font-size:22px;font-weight:680;letter-spacing:-.5px;color:#f4f4f5}
+#raiox .kpi.good .value{color:var(--green)} #raiox .kpi.bad .value{color:var(--red)}
+#raiox .kpi.warn .value{color:var(--amber)} #raiox .kpi.info .value{color:var(--accent2)}
+#raiox .pill{background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:2px 10px;font-size:11px;color:var(--muted)}
+#raiox .hint{color:var(--muted);font-size:12.5px;margin:-4px 0 14px;line-height:1.5}
+#raiox .foot-note{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.55}
+#raiox .foot-note b{color:#b9c4ce}
+#raiox .table-wrap{overflow-x:auto}
+#raiox table{width:100%;border-collapse:collapse;font-size:13px}
+#raiox th,#raiox td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+#raiox th:first-child,#raiox td:first-child{text-align:left}
+#raiox thead th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+#raiox tbody tr:hover{background:var(--panel2)}
+/* rx-* (copiado de styles.css) */
+#raiox .rx-table td.rx-metric,#raiox .rx-table th:first-child{text-align:left}
+#raiox .rx-table td.rx-metric{font-weight:600;color:var(--txt)}
+#raiox .rx-table .rx-sub{color:var(--muted);font-weight:400;font-size:11px}
+#raiox .rx-table td.rx-tot,#raiox .rx-table th.rx-tot{border-left:2px solid var(--line);font-weight:700;background:rgba(255,255,255,.02)}
+#raiox .rx-table td[data-tot]{border-left:2px solid var(--line);font-weight:700}
+#raiox .rx-table td.rx-ind,#raiox .rx-table .rx-ind{color:var(--muted);font-size:12px}
+#raiox .rx-table td.rx-click{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
+#raiox .rx-table td.rx-click:hover{background:rgba(59,130,246,.12)}
+#raiox .rx-table td.rx-good{color:var(--green);font-weight:700}
+#raiox .rx-table td.rx-warn{color:var(--amber);font-weight:700}
+#raiox .rx-table td.rx-bad{color:var(--red);font-weight:700}
+#raiox .rx-table tr.rx-section td{background:linear-gradient(90deg,rgba(220,171,91,.16),rgba(220,171,91,.02));color:#dcab5b;font-weight:800;font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;padding:9px 10px;border-top:2px solid var(--line);text-align:left}
+#raiox .rx-table tr[data-rxspark]{cursor:pointer}
+#raiox .rx-table tr[data-rxspark] td.rx-metric{text-decoration:underline dotted;text-underline-offset:3px}
+#raiox .rx-table tr[data-rxspark]:hover>td{background:rgba(34,211,238,.07)}
+#raiox .rx-table tr.rx-spark-row td{background:#0d1015;padding:4px 10px}
+#raiox .rx-table tr.rx-spark-row svg{display:block;max-width:100%}
+#raiox .rx-table th.rx-now{color:#22d3ee;font-weight:800}
 </style>
 </head>
 <body>
@@ -339,6 +394,7 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
     </div>
     <h1>Painel Executivo</h1>
     <div class="spacer"></div>
+    <button class="px-navbtn" onclick="pxShowRaiox&&pxShowRaiox()" title="Ver o Raio-X de Performance">Raio-X de Performance <span class="ar">→</span></button>
     <div class="ts-badge" id="tsBadge"></div>
   </div>
 
@@ -417,7 +473,31 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   </div>
 </div>
 
+<!-- ===== Raio-X de Performance — mesmo relatório do app, lido do JSON publicado ===== -->
+<div id="raiox">
+  <div class="rx-topbar">
+    <button class="px-navbtn" onclick="pxShowDash&&pxShowDash()" title="Voltar ao painel"><span class="ar">←</span> Voltar ao painel</button>
+    <h1>Raio-X de Performance</h1>
+    <div class="spacer"></div>
+    <span id="rxStatus" class="pill"></span>
+  </div>
+  <div class="rx-scroll">
+    <div id="rxVazio" class="card" style="display:none"><p class="hint" style="margin:0">Sem dados ainda — volte ao painel e aguarde carregar.</p></div>
+    <div id="rxConteudo" style="display:none">
+      <div class="cards" id="rxKpis"></div>
+      <div class="card chart-card"><h3>Duplicatas (parcelado/recorrente) e inadimplência</h3><canvas id="rxChart"></canvas></div>
+      <div class="card">
+        <h3>Painel mensal</h3>
+        <p class="hint">Cada coluna é um mês; a última é o acumulado do período.</p>
+        <div class="table-wrap" id="rxTabela"></div>
+        <div class="foot-note" id="rxNotas" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="painel-embedded.js"></script>
+<script src="raiox.js"></script>
 <script>
 (function(){
 'use strict';
@@ -585,6 +665,25 @@ function iniciar(){
     if(document.visibilityState==='visible' && !primeiraCarga) carregar(true);
   });
 }
+
+/* ===== alterna Painel ↔ Raio-X (mesmo link, sem recarregar) =====
+   O raiox.js é global; sobrescrevemos window.rxBuild p/ ele ler o JSON publicado (DADOS.rx),
+   e chamamos rxRender() só quando a view fica visível (Chart.js precisa do canvas medido). */
+window.rxBuild = function(){ return DADOS?DADOS.rx||null:null; };   // garante que o Raio-X leia o snapshot
+window.pxShowRaiox = function(){
+  var dash=document.getElementById('dashboard'), rx=document.getElementById('raiox');
+  if(dash) dash.style.display='none';
+  if(rx) rx.style.display='block';
+  try{ if(typeof window.rxRender==='function') window.rxRender(); }catch(e){ console.error('Raio-X:',e); }
+  var st=document.getElementById('rxStatus');   // tira o "painel não carregado" (é o painel comercial do Google, irrelevante aqui)
+  if(st) st.textContent=st.textContent.replace(/\s*·\s*painel n[ãa]o carregado\s*$/i,'');
+  if(rx) rx.scrollTop=0;
+};
+window.pxShowDash = function(){
+  var dash=document.getElementById('dashboard'), rx=document.getElementById('raiox');
+  if(rx) rx.style.display='none';
+  if(dash) dash.style.display='flex';
+};
 
 /* ===== LOGIN (gate client-side) =====
    AVISO: é um DETERRENTE, não segurança real — a página é estática e os dados ficam num bin público.
