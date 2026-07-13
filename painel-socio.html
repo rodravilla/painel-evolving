@@ -493,8 +493,7 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   <div class="rx-scroll">
     <div id="rxVazio" class="card" style="display:none"><p class="hint" style="margin:0">Sem dados ainda — volte ao painel e aguarde carregar.</p></div>
     <div id="rxConteudo" style="display:none">
-      <div class="cards" id="rxKpis"></div>
-      <div class="card chart-card"><h3>Duplicatas (parcelado/recorrente) e inadimplência</h3><canvas id="rxChart"></canvas></div>
+      <div class="cards" id="rxKpis" style="display:none"></div>
       <div class="card">
         <h3>Painel mensal</h3>
         <p class="hint">Cada coluna é um mês; a última é o acumulado do período.</p>
@@ -514,10 +513,14 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
 /* bin ID padrão — atualizado automaticamente pelo app */
 var DEFAULT_BIN='6a3d7bf7f5f4af5e293099a8';
 
-/* --- lê ?dados= ou ?bin= da URL; fallback: bin padrão acima --- */
+/* Stage 2 (precompute offline): arquivo estático publicado JUNTO a esta página.
+   Prioridade de fonte: ?dados= / ?bin= explícitos > painel-dados.json estático > jsonbin (fallback). */
+var STATIC_URL='dados/painel-dados.json';
+
+/* --- lê ?dados= ou ?bin= da URL --- */
 var params=new URLSearchParams(location.search);
-var dadosUrl=params.get('dados');
-var binId=params.get('bin')||DEFAULT_BIN;
+var explicitDados=params.get('dados');
+var explicitBin=params.get('bin');
 
 function showErr(msg,hint){
   var el=document.getElementById('loadMsg');
@@ -612,15 +615,19 @@ function fmtTs(iso){
   }catch(e){ return iso; }
 }
 
-/* --- resolve URL de busca --- */
-var url;
-if(binId){
-  url='https://api.jsonbin.io/v3/b/'+binId+'/latest';
-} else {
+/* --- resolve as FONTES candidatas, em ordem de prioridade --- */
+var candidates;
+if(explicitDados){
   /* Google Drive: transforma link de compartilhamento em link direto */
-  var m=dadosUrl.match(/\/file\/d\/([^/]+)\//);
-  url=m?'https://drive.google.com/uc?export=download&id='+m[1]:dadosUrl;
+  var m=explicitDados.match(/\/file\/d\/([^/]+)\//);
+  candidates=[ m?'https://drive.google.com/uc?export=download&id='+m[1]:explicitDados ];
+} else if(explicitBin){
+  candidates=[ 'https://api.jsonbin.io/v3/b/'+explicitBin+'/latest' ];
+} else {
+  /* default (painel publicado): estático primeiro, jsonbin como fallback durante a transição */
+  candidates=[ STATIC_URL, 'https://api.jsonbin.io/v3/b/'+DEFAULT_BIN+'/latest' ];
 }
+var _pinnedUrl=null;   // a 1ª fonte que responder vira a fixa (o auto-refresh reusa ela)
 document.getElementById('loadMsg').textContent='Baixando dados do painel...';
 
 /* aplica um payload recém-baixado: reaponta DADOS (os stubs leem dele) e re-renderiza */
@@ -643,25 +650,35 @@ function aplicarDados(raw){
   if(window.painelRenderAll) window.painelRenderAll();
 }
 
-/* baixa os dados; silencioso=true não mostra tela de erro (usado no auto-refresh em background) */
+/* baixa 1 URL (com cache-bust) e devolve o JSON */
+function fetchJson(u){
+  var uu=u+(u.indexOf('?')>=0?'&':'?')+'_cb='+(+new Date());   // cache-bust: evita CDN/navegador servir versão velha
+  return fetch(uu,{cache:'no-store'}).then(function(r){
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  });
+}
+/* baixa os dados tentando as fontes candidatas EM ORDEM; a 1ª que responder é fixada.
+   silencioso=true não mostra tela de erro (usado no auto-refresh em background) */
 function carregar(silencioso){
-  var u=url+(url.indexOf('?')>=0?'&':'?')+'_cb='+(+new Date());   // cache-bust: evita CDN/navegador servir versão velha
-  return fetch(u,{cache:'no-store'})
-    .then(function(r){
-      if(!r.ok) throw new Error('HTTP '+r.status+' — verifique se o link é público e acessível.');
-      return r.json();
-    })
-    .then(aplicarDados)
-    .catch(function(err){
-      if(silencioso){ console.warn('auto-refresh falhou:',err.message); return; }
+  var lista=_pinnedUrl?[_pinnedUrl]:candidates.slice();
+  var i=0;
+  return (function tryNext(lastErr){
+    if(i>=lista.length){
+      if(silencioso){ console.warn('auto-refresh falhou:',lastErr&&lastErr.message); return; }
       showErr(
-        'Erro ao carregar dados: '+err.message,
+        'Erro ao carregar dados: '+(lastErr?lastErr.message:'nenhuma fonte respondeu'),
         'Dicas:<br>'
-        +'• O arquivo precisa ser <b>público</b> (qualquer pessoa com o link pode ver)<br>'
-        +'• Para Google Drive: use "Compartilhar → Qualquer pessoa com o link → Visualizador"<br>'
-        +'• Verifique se o link está completo e correto'
+        +'• O arquivo <code>painel-dados.json</code> precisa estar publicado junto a esta página<br>'
+        +'• Ou o bin/link precisa ser <b>público</b> e acessível<br>'
+        +'• Verifique sua conexão'
       );
-    });
+      return;
+    }
+    var u=lista[i++];
+    return fetchJson(u).then(function(json){ _pinnedUrl=u; aplicarDados(json); })
+      .catch(function(e){ return tryNext(e); });
+  })(null);
 }
 
 /* inicia o carregamento + auto-atualização — SÓ chamado após o login validar */

@@ -155,8 +155,22 @@ function rxBuild(opts){
       if(!novosVistos[r.nome]){ novosVistos[r.nome]=true; M[mk].novos += 1; }
     }
   });
-  // Faturamento = por COMPETÊNCIA, do Relatório de Entradas (fatByMes: base completa, valor original, sem outras entradas)
+  // ENTRADA de caixa: incluir a transferência ASSINY → ASAAS (MESMA regra do DFC) — é dinheiro real que entrou
+  // no caixa. Sem isto, a Geração de caixa do painel fica MENOR que o DFC (que conta a Assiny) — incongruência.
+  const _asn=(typeof window!=='undefined' && window.dfcEntradaAssiny)?window.dfcEntradaAssiny:[];
+  _asn.forEach(a=>{ if(!M[a.mes]) return;
+    const s=String(a.situacao||'').toLowerCase();
+    if(/em aberto|a vencer|a pagar|previst|agendad|pendent|aguardand/.test(s)) return;   // só o que realizou
+    M[a.mes].recebidoCaixa += Math.abs(a.valor||0);
+  });
+  // Faturamento = Valor do Contrato dos contratos vendidos (planilha de comissões, ao vivo), por Data de Venda.
+  // Garante que a planilha comercial carregue mesmo sem abrir a aba Comissões (startOnce tem guarda própria).
+  if(typeof window.commEnsureLoaded==='function'){ try{ window.commEnsureLoaded(); }catch(e){} }
+  // 1º) fallback: entradas por competência do extrato (fatByMes) enquanto a planilha comercial não carregou.
   if(typeof fatByMes!=='undefined' && fatByMes) months.forEach(m=>{ if(M[m]) M[m].faturamento = fatByMes[m]||0; });
+  // 2º) fonte primária: contratos vendidos por Data de Venda (só sobrescreve quando a planilha já tem dados).
+  if(typeof window.commReceitaByMes==='function'){ const _rv=window.commReceitaByMes().venda;
+    if(_rv && Object.keys(_rv).length) months.forEach(m=>{ if(M[m]) M[m].faturamento = _rv[m]||0; }); }
 
   // saídas de caixa do DFC (por mês); as ENTRADAS vêm do Relatório de Entradas (recebidoCaixa), abaixo
   if(typeof lastDfc!=='undefined' && lastDfc && lastDfc.calc){
@@ -290,7 +304,6 @@ function rxBuild(opts){
 window.rxBuild = rxBuild;   // exposto p/ o Painel Executivo (painel-executivo.html) ler headless
 
 /* ---------- render ---------- */
-let rxChart=null;
 let rxLastM=null;   // último M calculado, para o drill-down de inadimplentes
 let rxLastMonths=null;   // meses exibidos (p/ sparklines)
 let rxLastCarteira=0;   // total da carteira a receber em aberto
@@ -387,7 +400,7 @@ function rxRender(){
   const secRow=(label)=> `<tr class="rx-section"><td colspan="${months.length+2}">${label}</td></tr>`;
   const rows=[];
   rows.push(secRow('① RECEITA & DUPLICATAS'));
-  rows.push(moneyRow('Faturamento <span class="rx-sub">(competência)</span>','faturamento',T.faturamento,'Soma do valor faturado (bruto) por mês de competência.'));
+  rows.push(moneyRow('Faturamento <span class="rx-sub">(competência)</span>','faturamento',T.faturamento,'Valor do Contrato dos contratos fechados no mês (Data de Venda) — fonte: planilha de comissões (ao vivo). Fallback: entradas por competência do extrato enquanto a planilha comercial não carrega.'));
   // cash collection (valor de entrada + à vista) + % do faturamento
   rows.push(`<tr><td class="rx-metric" title="Valor de Entrada + À vista recebidos no mês (Relatório de Entradas).">Cash collection <span class="rx-sub">(entrada + à vista)</span></td>`
     + months.map(m=>`<td>${rxFmt0(M[m].cashColl)}</td>`).join('')+`<td class="rx-tot">${rxFmt0(T.cashColl)}</td></tr>`);
@@ -476,25 +489,8 @@ function rxRender(){
    +`<b>Cash collection</b> = Valor de Entrada + À vista (do Relatório de Entradas); <b>Cash collection %</b> = cash collection ÷ faturamento. `
    +`<b>Duplicatas:</b> valores de parcelas/recorrentes recebidos no mês (Relatório de Entradas), <b>excluindo entrada e à vista</b>. É o denominador da inadimplência. `
    +`<b>% recorrente</b> = duplicatas ÷ faturamento (quanto da receita é recorrente). <b>DSO</b> = prazo médio de recebimento (dias da venda/competência até a baixa — ciclo completo). <b>Saldo de caixa</b> = saldo inicial do DFC + geração acumulada; <b>Runway</b> = saldo ÷ queima média (∞ se gera caixa). <b>Aging</b> = recebíveis em aberto por faixa de atraso (hoje). `
-   +`Definições: <i>faturamento</i> por competência; <i>duplicatas, cash collection, atrasados, caixa</i> por regime de caixa; <i>inadimplência</i> = vencido em aberto (contas a receber) ÷ duplicatas. Passe o mouse em cada métrica para a explicação. `;
+   +`Definições: <i>faturamento</i> = Valor do Contrato dos contratos vendidos (Data de Venda), da planilha de comissões; <i>duplicatas, cash collection, atrasados, caixa</i> por regime de caixa; <i>inadimplência</i> = vencido em aberto (contas a receber) ÷ duplicatas. Passe o mouse em cada métrica para a explicação. `;
 
-  // ----- gráfico: Duplicatas (barras) + % inadimplência (linha) -----
-  const C=(typeof COL!=='undefined')?COL:{txt:'#9aa7b4',line:'#2c3744'};
-  if(rxChart) rxChart.destroy();
-  const ctx=document.getElementById('rxChart');
-  if(ctx) rxChart=new Chart(ctx,{
-    data:{ labels:months.map(rxLabel), datasets:[
-      {type:'bar',label:'Duplicatas (parcelado/recorrente)',data:months.map(m=>M[m].mrrReal),backgroundColor:'#22c55e',borderRadius:3,yAxisID:'y'},
-      {type:'line',label:'% inadimplência',data:months.map(m=>M[m].inadPct),borderColor:'#ef4444',backgroundColor:'#ef4444',tension:.25,yAxisID:'y1',pointRadius:3}
-    ]},
-    options:{ responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:C.txt,font:{size:11}}}},
-      scales:{
-        x:{ticks:{color:C.txt},grid:{color:C.line}},
-        y:{position:'left',ticks:{color:C.txt,callback:v=>'R$ '+(v/1000)+'k'},grid:{color:C.line}},
-        y1:{position:'right',ticks:{color:'#ef4444',callback:v=>v+'%'},grid:{drawOnChartArea:false}}
-      }}
-  });
 }
 
 /* ---------- exportação ---------- */
