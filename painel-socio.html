@@ -504,8 +504,8 @@ html,body{height:100%;background:#080b10;color:#cbd5e1;font-family:system-ui,-ap
   </div>
 </div>
 
-<script src="painel-embedded.js"></script>
-<script src="raiox.js"></script>
+<script src="painel-embedded.js?v=3"></script>
+<script src="raiox.js?v=3"></script>
 <script>
 (function(){
 'use strict';
@@ -647,7 +647,17 @@ function aplicarDados(raw){
     setupFiltros(dados);            // só na 1ª vez (evita re-anexar listeners e respeita o filtro escolhido)
     primeiraCarga=false;
   }
-  if(window.painelRenderAll) window.painelRenderAll();
+  try{
+    if(window.painelRenderAll) window.painelRenderAll();
+    else throw new Error('painelRenderAll indefinido — painel-embedded.js não carregou (cache? 404?)');
+  }catch(e){
+    console.error('render:',e);
+    var b=document.getElementById('pxRenderErr')||document.createElement('div');
+    b.id='pxRenderErr';
+    b.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99999;background:#b91c1c;color:#fff;padding:8px 12px;font:12px/1.4 system-ui;white-space:pre-wrap';
+    b.textContent='⚠ Erro ao renderizar: '+((e&&e.message)||e);
+    if(!b.parentNode) document.body.appendChild(b);
+  }
 }
 
 /* baixa 1 URL (com cache-bust) e devolve o JSON */

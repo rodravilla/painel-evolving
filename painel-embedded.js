@@ -229,23 +229,28 @@ function renderPE(be,rx){
   const caixaMes=(rx&&rx.M&&rx.M[nowYM])?(rx.M[nowYM].recebidoCaixa||0):null;
   const dia=dNow.getDate(), diasMes=new Date(dNow.getFullYear(),dNow.getMonth()+1,0).getDate();
   const caixaRun=(caixaMes!=null&&dia>0)?caixaMes/dia*diasMes:null;
+  // PREVISÃO DE ENTRADAS (modelo) — MESMA fonte do Raio-X (modProjCashByMonth.receita): cash collection do faturamento previsto + parcelas a vencer (CA) − aging de inadimplência. Bate exato com "Previsão de entradas" do Raio-X.
+  const _pjEnt=wCall('modProjCashByMonth','Realista');
+  const fcEnt=(_pjEnt&&_pjEnt[nowYM]&&isFinite(_pjEnt[nowYM].receita))?_pjEnt[nowYM].receita:null;
   const peCx=be.peCaixaReceita;
   const cob=(caixaRun!=null&&peCx>0)?caixaRun/peCx*100:null;
   const rCx=cob==null?'':(cob>=100?'good':(cob>=85?'warn':'bad'));
   if(fonte) fonte.textContent=be.temReal?'base: DRE realizado':'base: premissas';
   if(box) box.innerHTML=[
-    kpi('Caixa do mês ('+mesNome+')',caixaMes!=null?f0(caixaMes):'—',{c:rCx,sub:caixaMes==null?'sem dado':(caixaMes<=0?'dia '+dia+'/'+diasMes+' · sem entrada':'parcial dia '+dia+'/'+diasMes+' · run-rate '+f0(caixaRun))}),
+    kpi('Previsão de entradas ('+mesNome+')',fcEnt!=null?f0(fcEnt):'—',{c:'info',sub:'modelo: cash collection + parcelas − aging · = Raio-X'}),
+    kpi('Entradas do mês ('+mesNome+')',caixaMes!=null?f0(caixaMes):'—',{c:rCx,sub:caixaMes==null?'sem dado':(caixaMes<=0?'dia '+dia+'/'+diasMes+' · sem entrada':'realizado dia '+dia+'/'+diasMes+' · run-rate '+f0(caixaRun))}),
     kpi('PE de caixa',peCx!=null?f0(peCx):'—',{c:'info',sub:'zera o caixa (c/ sócios)'}),
     kpi('Cobertura PE de caixa',cob!=null?p1(cob):'—',{c:rCx,sub:'run-rate ÷ PE de caixa'}),
     kpi('Ponto de equilíbrio',f0(be.peReceita),{c:'info',sub:'lucro zero (operacional)'}),
     kpi('Margem de contribuição',p1(be.mcPct),{c:be.mcPct>=50?'good':(be.mcPct>=30?'warn':'bad'),sub:'1 − custos variáveis'}),
     kpi('Alavancagem op. ('+nMeses+'m)',gao!=null?(gao.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'×'):'—',{c:gao==null?'warn':(gao<=2?'good':(gao<=4?'warn':'bad')),sub:gao!=null?(gaoRange+' · +1% venda → +'+gao.toFixed(1)+'% lucro'):'sem meses completos'}),
   ].join('');
-  const mMax=Math.max(peCx||0,caixaMes||0,caixaRun||0,be.peReceita);
+  const mMax=Math.max(peCx||0,caixaMes||0,caixaRun||0,fcEnt||0);
   if(bridge) bars(bridge,[
     {lbl:'PE de caixa (alvo)',color:C.c1,v:peCx||0},
-    {lbl:'Caixa '+mesNome+' (realizado)',color:C.c4,v:caixaMes||0},
-    {lbl:'Caixa '+mesNome+' (run-rate)',color:(cob!=null&&cob>=100?C.green:C.red),v:caixaRun||0},
+    {lbl:'Previsão de entradas (modelo)',color:C.green,v:fcEnt||0},
+    {lbl:'Entradas '+mesNome+' (run-rate)',color:(cob!=null&&cob>=100?C.green:C.red),v:caixaRun||0},
+    {lbl:'Entradas '+mesNome+' (realizado até hoje)',color:C.c4,v:caixaMes||0},
   ],mMax,f0);
   if(nota) nota.innerHTML=(cob!=null?`Run-rate <b>${f0(caixaRun)}</b> cobre <b>${p1(cob)}</b> do PE de caixa. `:'')+
     `<b>GAO</b> = MC ÷ res. operacional (${nMeses}m). <b>PE de caixa</b> inclui sócios (${f0(be.socios||0)}).`;
